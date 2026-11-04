@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Return Book - {{ app_name }}{% endblock %}
+{% block page_title %}Return Book Circulation{% endblock %}
+{% block page_subtitle %}Manage check-in of active loans, verify return dates, and replenish available inventory{% endblock %}
+
+{% block content %}
+<!-- Search & Filter Toolbar -->
+<div class="filter-toolbar">
+    <form method="GET" action="{{ url_for('return_book') }}" class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
+        <div class="input-group" style="max-width: 420px;">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" name="search" class="form-control border-start-0 ps-0" 
+                   placeholder="Search active loans by title, borrower, or roll no..." 
+                   value="{{ search }}">
+        </div>
+
+        <button type="submit" class="btn btn-outline-primary"><i class="bi bi-search"></i> Search</button>
+        {% if search %}
+            <a href="{{ url_for('return_book') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Clear</a>
+        {% endif %}
+    </form>
+
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">
+            <i class="bi bi-arrow-repeat"></i> {{ active_loans|length }} Active Loans Checked Out
+        </span>
+    </div>
+</div>
+
+<!-- Active Loans Table Card -->
+<div class="custom-card">
+    <div class="custom-card-header">
+        <h5><i class="bi bi-box-arrow-in-left text-primary"></i> Active Book Loans Pending Return</h5>
+        <div class="text-muted small">Select a loan to record book check-in</div>
+    </div>
+    <div class="custom-card-body p-0">
+        <div class="table-responsive">
+            <table class="custom-table" id="returnLoansTable">
+                <thead>
+                    <tr>
+                        <th style="width: 70px;">Loan ID</th>
+                        <th>Book Title</th>
+                        <th>Category</th>
+                        <th>Borrower</th>
+                        <th>Roll No</th>
+                        <th>Issue Date</th>
+                        <th>Due Date</th>
+                        <th>Loan Status</th>
+                        <th class="text-end" style="width: 140px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in active_loans %}
+                        <tr class="{% if loan.is_overdue %}table-danger-subtle{% endif %}">
+                            <td><strong class="text-primary">#{{ loan.loan_id }}</strong></td>
+                            <td class="fw-semibold">
+                                <div class="text-dark">{{ loan.title }}</div>
+                                <div class="small text-muted font-monospace">ISBN: {{ loan.isbn }}</div>
+                            </td>
+                            <td><span class="badge bg-light text-dark border">{{ loan.category }}</span></td>
+                            <td class="fw-semibold">{{ loan.borrower_name }}</td>
+                            <td><code class="text-secondary small">{{ loan.roll_no }}</code></td>
+                            <td>{{ loan.issue_date }}</td>
+                            <td>
+                                <span class="{% if loan.is_overdue %}text-danger fw-bold{% endif %}">
+                                    {{ loan.due_date }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if loan.is_overdue %}
+                                    <span class="badge-status overdue">
+                                        <i class="bi bi-exclamation-triangle-fill"></i> Overdue ({{ loan.days_overdue }}d)
+                                    </span>
+                                {% else %}
+                                    <span class="badge-status active">
+                                        <i class="bi bi-clock"></i> Active
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-primary-custom"
+                                        data-bs-toggle="modal" data-bs-target="#returnModal{{ loan.loan_id }}">
+                                    <i class="bi bi-box-arrow-in-left"></i> Return Book
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Return Confirmation Modal -->
+                        <div class="modal fade" id="returnModal{{ loan.loan_id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('return_book') }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                        <input type="hidden" name="loan_id" value="{{ loan.loan_id }}">
+                                        
+                                        <div class="modal-header">
+                                            <h5 class="modal-title"><i class="bi bi-check-circle-fill text-success"></i> Confirm Book Return</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <div class="p-3 rounded bg-light border mb-3">
+                                                    <div class="row g-2 small">
+                                                        <div class="col-4 text-muted">Book:</div>
+                                                        <div class="col-8 fw-bold text-dark">{{ loan.title }}</div>
+                                                        <div class="col-4 text-muted">Borrower:</div>
+                                                        <div class="col-8">{{ loan.borrower_name }} ({{ loan.roll_no }})</div>
+                                                        <div class="col-4 text-muted">Issue Date:</div>
+                                                        <div class="col-8">{{ loan.issue_date }}</div>
+                                                        <div class="col-4 text-muted">Due Date:</div>
+                                                        <div class="col-8 {% if loan.is_overdue %}text-danger fw-bold{% endif %}">{{ loan.due_date }}</div>
+                                                        {% if loan.is_overdue %}
+                                                            <div class="col-4 text-danger fw-bold">Overdue:</div>
+                                                            <div class="col-8 text-danger fw-bold">{{ loan.days_overdue }} days past due</div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">Return Date <span class="text-danger">*</span></label>
+                                                <input type="date" name="return_date" class="form-control" 
+                                                       value="{{ today_date }}" 
+                                                       min="{{ loan.issue_date }}" 
+                                                       required>
+                                                <div class="form-text small">Cannot be earlier than the issue date ({{ loan.issue_date }}).</div>
+                                            </div>
+
+                                            <div class="alert alert-info small mb-0">
+                                                <i class="bi bi-info-circle"></i> On confirmation, the available copies count for <strong>"{{ loan.title }}"</strong> will increase by 1.
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-success text-white">
+                                                <i class="bi bi-check-lg"></i> Complete Return
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                    {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5 text-muted">
+                                <i class="bi bi-check2-all fs-1 text-success d-block mb-2"></i>
+                                All books have been returned! No active loans matching your search.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

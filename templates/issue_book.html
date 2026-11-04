@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Issue Book - {{ app_name }}{% endblock %}
+{% block page_title %}Issue Book to Patron{% endblock %}
+{% block page_subtitle %}Process loan transaction with real-time copy allocation and automatic due date calculation{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-7">
+        <div class="custom-card">
+            <div class="custom-card-header bg-white">
+                <h5><i class="bi bi-box-arrow-right text-primary"></i> Issue Book Transaction</h5>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                    Standard Loan: {{ period_days }} Days
+                </span>
+            </div>
+            <div class="custom-card-body p-4">
+                <form method="POST" action="{{ url_for('issue_book') }}" id="issueBookForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" id="borrowing_period_days" value="{{ period_days }}">
+
+                    <!-- Step 1: Select Book -->
+                    <div class="mb-4">
+                        <label class="form-label d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-book text-primary me-1"></i> Select Book <span class="text-danger">*</span></span>
+                            <span class="small text-muted" id="bookStockStatus"></span>
+                        </label>
+                        <select name="book_id" id="bookSelect" class="form-select form-select-lg" required>
+                            <option value="">-- Choose a Book from Inventory --</option>
+                            {% for b in all_books %}
+                                <option value="{{ b.book_id }}" 
+                                        data-available="{{ b.copies_available }}"
+                                        data-total="{{ b.total_copies }}"
+                                        data-category="{{ b.category }}"
+                                        {% if b.copies_available <= 0 %}disabled class="text-danger"{% endif %}>
+                                    {{ b.title }} by {{ b.author }} 
+                                    {% if b.copies_available > 0 %}
+                                        (Available: {{ b.copies_available }}/{{ b.total_copies }})
+                                    {% else %}
+                                        [OUT OF STOCK - 0/{{ b.total_copies }}]
+                                    {% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text small">Only books with available copies in inventory can be selected.</div>
+                    </div>
+
+                    <!-- Step 2: Select Borrower -->
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="bi bi-person text-primary me-1"></i> Select Borrower / Student <span class="text-danger">*</span>
+                        </label>
+                        <select name="borrower_id" class="form-select form-select-lg" required>
+                            <option value="">-- Choose Borrower --</option>
+                            {% for bw in borrowers %}
+                                <option value="{{ bw.borrower_id }}">
+                                    {{ bw.borrower_name }} (Roll No: {{ bw.roll_no }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Step 3: Dates Row -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                <i class="bi bi-calendar-event text-primary me-1"></i> Issue Date <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" name="issue_date" id="issue_date" 
+                                   class="form-control" 
+                                   value="{{ today_date }}" 
+                                   max="{{ today_date }}" 
+                                   required>
+                            <div class="form-text small">Cannot be a future date.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                <i class="bi bi-calendar-check text-primary me-1"></i> Calculated Due Date
+                            </label>
+                            <input type="date" id="due_date_display" 
+                                   class="form-control bg-light" 
+                                   value="{{ default_due_date }}" 
+                                   readonly>
+                            <div class="form-text small text-muted">Auto-calculated based on {{ period_days }}-day borrowing period.</div>
+                        </div>
+                    </div>
+
+                    <!-- Policy Box -->
+                    <div class="alert alert-light border d-flex gap-3 align-items-start mb-4">
+                        <i class="bi bi-shield-check text-primary fs-4 mt-1"></i>
+                        <div class="small text-secondary">
+                            <strong class="text-dark d-block mb-1">Transaction Safety Rules:</strong>
+                            Executing this transaction will decrease the available copies by 1 inside an atomic database transaction. If the book becomes due without return, the system flags it automatically as overdue.
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Dashboard
+                        </a>
+                        <button type="submit" class="btn btn-primary-custom px-4 py-2">
+                            <i class="bi bi-check-circle-fill"></i> Confirm & Issue Book
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - {{ app_name }}{% endblock %}
+{% block page_title %}System Settings & Diagnostics{% endblock %}
+{% block page_subtitle %}Configure circulation rules, borrowing durations, and inspect database connectivity{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Circulation Configuration -->
+    <div class="col-lg-6">
+        <div class="custom-card h-100">
+            <div class="custom-card-header">
+                <h5><i class="bi bi-sliders text-primary"></i> Circulation Settings</h5>
+            </div>
+            <div class="custom-card-body">
+                <form method="POST" action="{{ url_for('settings') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="update_period">
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Default Borrowing Duration (Days) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" name="borrowing_period" class="form-control" 
+                                   min="1" max="365" 
+                                   value="{{ borrowing_period }}" required>
+                            <span class="input-group-text bg-light">Days</span>
+                        </div>
+                        <div class="form-text small">
+                            When issuing a new book loan, the due date is calculated automatically as: <code>issue_date + duration</code>. Default standard is 14 days.
+                        </div>
+                    </div>
+
+                    <div class="alert alert-light border small text-secondary mb-4">
+                        <i class="bi bi-info-circle text-primary"></i> Note: Updating this setting affects all future loan issues. Existing loan due dates remain preserved for audit compliance.
+                    </div>
+
+                    <button type="submit" class="btn btn-primary-custom">
+                        <i class="bi bi-check2-circle"></i> Save Circulation Policy
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Status & Diagnostics -->
+    <div class="col-lg-6">
+        <div class="custom-card h-100">
+            <div class="custom-card-header d-flex justify-content-between align-items-center">
+                <h5><i class="bi bi-database text-primary"></i> Database Engine Status</h5>
+                <form method="POST" action="{{ url_for('settings') }}" class="m-0">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="test_db">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-clockwise"></i> Test Connection
+                    </button>
+                </form>
+            </div>
+            <div class="custom-card-body">
+                <div class="list-group list-group-flush mb-4">
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-secondary">Connection Health:</span>
+                        {% if db_info.connected %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1">
+                                <i class="bi bi-check-circle-fill"></i> Connected & Operational
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1">
+                                <i class="bi bi-x-circle-fill"></i> Disconnected
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-secondary">Active Database Engine:</span>
+                        <strong class="text-dark">{{ db_info.active_engine }}</strong>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-secondary">Engine Version:</span>
+                        <code class="text-primary">{{ db_info.version or 'N/A' }}</code>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-secondary">Host / Location:</span>
+                        <span class="text-dark font-monospace small">{{ db_info.host }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-secondary">Target Port:</span>
+                        <span class="text-dark font-monospace small">{{ db_info.port }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-secondary">Active Database Name / Path:</span>
+                        <span class="text-dark font-monospace small text-truncate" style="max-width: 250px;">{{ db_info.database }}</span>
+                    </div>
+                </div>
+
+                {% if db_info.error %}
+                    <div class="alert alert-warning small mb-0">
+                        <strong>Connection Note:</strong>
+                        <div class="mt-1 font-monospace" style="font-size: 0.78rem;">{{ db_info.error }}</div>
+                        <div class="mt-2 text-muted">
+                            When running with your local MySQL Server service, configure credentials in <code>.env</code> file: <code>MYSQL_USER</code>, <code>MYSQL_PASSWORD</code>, <code>MYSQL_PORT</code>.
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Information -->
+    <div class="col-12">
+        <div class="custom-card">
+            <div class="custom-card-header">
+                <h5><i class="bi bi-info-circle text-primary"></i> Application & Architecture Specifications</h5>
+            </div>
+            <div class="custom-card-body">
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <h6 class="fw-bold text-dark mb-2"><i class="bi bi-layers text-primary"></i> Technology Stack</h6>
+                        <ul class="list-unstyled small text-secondary">
+                            <li><strong>Backend:</strong> Python 3.14 + Flask 3.1</li>
+                            <li><strong>Data Science:</strong> Pandas 3.1 + NumPy 2.5</li>
+                            <li><strong>Analytical Charts:</strong> Matplotlib 3.11</li>
+                            <li><strong>Interactive Visuals:</strong> Chart.js 4.4</li>
+                            <li><strong>UI / Styling:</strong> Bootstrap 5.3 + Custom CSS</li>
+                            <li><strong>Database:</strong> MySQL 8.0 (PyMySQL connector)</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="fw-bold text-dark mb-2"><i class="bi bi-shield-check text-primary"></i> Security & Integrity</h6>
+                        <ul class="list-unstyled small text-secondary">
+                            <li>Parameterized SQL queries across all routes</li>
+                            <li>Atomic database transactions (Issue/Return)</li>
+                            <li>CSRF token session validation for form posts</li>
+                            <li>Server-side input and boundary validations</li>
+                            <li>Referential integrity foreign key constraints</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="fw-bold text-dark mb-2"><i class="bi bi-lightning-charge text-primary"></i> Quick Maintenance</h6>
+                        <p class="small text-secondary mb-3">
+                            You can re-execute <code>database.sql</code> or re-initialize sample records at any time.
+                        </p>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Return to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

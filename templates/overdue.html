@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Overdue Loans Analysis - {{ app_name }}{% endblock %}
+{% block page_title %}Overdue Loans Analysis{% endblock %}
+{% block page_subtitle %}Real-time monitoring of delinquent loans past their scheduled return date{% endblock %}
+
+{% block content %}
+<!-- Overdue Summary Alert & Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card rose">
+            <div class="stat-info">
+                <div class="stat-label">Total Overdue</div>
+                <div class="stat-value text-danger">{{ total_overdue }}</div>
+                <div class="stat-desc">Loans requiring action</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card amber">
+            <div class="stat-info">
+                <div class="stat-label">Avg. Delinquency</div>
+                <div class="stat-value text-warning-emphasis">{{ stats.avg_days_overdue }} d</div>
+                <div class="stat-desc">Mean days past due</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-clock-history"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card blue">
+            <div class="stat-info">
+                <div class="stat-label">Max. Overdue</div>
+                <div class="stat-value">{{ stats.max_days_overdue }} d</div>
+                <div class="stat-desc">Longest unreturned loan</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-calendar-x"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card teal">
+            <div class="stat-info">
+                <div class="stat-label">Action</div>
+                <div class="stat-desc mt-2">Export comprehensive overdue audit report to CSV</div>
+                <a href="{{ url_for('export_csv', report_type='overdue') }}" class="btn btn-sm btn-outline-danger mt-2">
+                    <i class="bi bi-file-earmark-arrow-down"></i> Export Overdue CSV
+                </a>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-download"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Filter Toolbar -->
+<div class="filter-toolbar">
+    <form method="GET" action="{{ url_for('overdue') }}" class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
+        <!-- Search -->
+        <div class="input-group" style="max-width: 320px;">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" name="search" class="form-control border-start-0 ps-0" 
+                   placeholder="Search title, borrower, roll no..." 
+                   value="{{ search }}">
+        </div>
+
+        <!-- Filter by Borrower -->
+        <div style="min-width: 200px;">
+            <select name="borrower_id" class="form-select" onchange="this.form.submit()">
+                <option value="">All Borrowers</option>
+                {% for bw in borrowers %}
+                    <option value="{{ bw.borrower_id }}" {% if selected_borrower|string == bw.borrower_id|string %}selected{% endif %}>
+                        {{ bw.borrower_name }} ({{ bw.roll_no }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Filter by Category -->
+        <div style="min-width: 180px;">
+            <select name="category" class="form-select" onchange="this.form.submit()">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                    <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-outline-primary"><i class="bi bi-filter"></i> Apply</button>
+        {% if search or selected_borrower or selected_category %}
+            <a href="{{ url_for('overdue') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Reset</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Overdue Loans Table -->
+<div class="custom-card">
+    <div class="custom-card-header">
+        <h5><i class="bi bi-alarm-fill text-danger"></i> Delinquent Loans List ({{ overdue_loans|length }} found)</h5>
+        <div class="text-danger small fw-semibold">Filtered by: return_date IS NULL AND due_date &lt; CURDATE()</div>
+    </div>
+    <div class="custom-card-body p-0">
+        <div class="table-responsive">
+            <table class="custom-table" id="overdueTable">
+                <thead>
+                    <tr>
+                        <th style="width: 70px;">Loan ID</th>
+                        <th>Book Title</th>
+                        <th>Category</th>
+                        <th>Borrower Name</th>
+                        <th>Roll Number</th>
+                        <th>Issue Date</th>
+                        <th>Due Date</th>
+                        <th>Days Overdue</th>
+                        <th class="text-end" style="width: 130px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in overdue_loans %}
+                        <tr class="table-danger-subtle">
+                            <td><strong class="text-danger">#{{ loan.loan_id }}</strong></td>
+                            <td class="fw-semibold text-dark">{{ loan.title }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ loan.category }}</span></td>
+                            <td class="fw-semibold">{{ loan.borrower_name }}</td>
+                            <td><code class="text-secondary small">{{ loan.roll_no }}</code></td>
+                            <td>{{ loan.issue_date }}</td>
+                            <td class="text-danger fw-bold">{{ loan.due_date }}</td>
+                            <td>
+                                <span class="badge bg-danger text-white px-2 py-1">
+                                    <i class="bi bi-exclamation-triangle-fill"></i> {{ loan.days_overdue }} Days
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                        data-bs-toggle="modal" data-bs-target="#overdueReturnModal{{ loan.loan_id }}">
+                                    <i class="bi bi-box-arrow-in-left"></i> Check In
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Quick Return Modal for Overdue Item -->
+                        <div class="modal fade" id="overdueReturnModal{{ loan.loan_id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('return_book') }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                        <input type="hidden" name="loan_id" value="{{ loan.loan_id }}">
+                                        
+                                        <div class="modal-header border-0 pb-0">
+                                            <h5 class="modal-title text-danger"><i class="bi bi-exclamation-octagon-fill"></i> Return Overdue Book</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body py-3">
+                                            <p>Record check-in for overdue loan <strong>#{{ loan.loan_id }}</strong>?</p>
+                                            <ul class="list-unstyled small text-secondary bg-light p-3 rounded border">
+                                                <li><strong>Book:</strong> {{ loan.title }}</li>
+                                                <li><strong>Borrower:</strong> {{ loan.borrower_name }} ({{ loan.roll_no }})</li>
+                                                <li><strong>Due Date:</strong> {{ loan.due_date }}</li>
+                                                <li class="text-danger fw-bold"><strong>Overdue:</strong> {{ loan.days_overdue }} days past due</li>
+                                            </ul>
+                                            <div class="mb-3">
+                                                <label class="form-label">Return Date <span class="text-danger">*</span></label>
+                                                <input type="date" name="return_date" class="form-control" value="{{ today_date }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer border-0 pt-0">
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-success text-white">Record Check-in</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                    {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5 text-muted">
+                                <i class="bi bi-shield-check fs-1 text-success d-block mb-2"></i>
+                                Fantastic! No overdue loans found matching your selection.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Library Book Usage Analysis{% endblock %}
+{% block page_title %}Library Overview Dashboard{% endblock %}
+{% block page_subtitle %}Live inventory status, circulation statistics, and dynamic usage analytics{% endblock %}
+
+{% block content %}
+<!-- Metric KPI Cards Row -->
+<div class="row g-3 mb-4">
+    <!-- 1. Total Books -->
+    <div class="col-sm-6 col-xl-2">
+        <div class="stat-card blue">
+            <div class="stat-info">
+                <div class="stat-label">Total Books</div>
+                <div class="stat-value">{{ metrics.total_books }}</div>
+                <div class="stat-desc">{{ metrics.total_copies }} total copies</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-book"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Total Borrowers -->
+    <div class="col-sm-6 col-xl-2">
+        <div class="stat-card indigo">
+            <div class="stat-info">
+                <div class="stat-label">Borrowers</div>
+                <div class="stat-value">{{ metrics.total_borrowers }}</div>
+                <div class="stat-desc">Registered patrons</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-people"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Available Copies -->
+    <div class="col-sm-6 col-xl-2">
+        <div class="stat-card teal">
+            <div class="stat-info">
+                <div class="stat-label">Available Copies</div>
+                <div class="stat-value">{{ metrics.available_copies }}</div>
+                <div class="stat-desc">Ready for loan</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-check2-circle"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Active Loans -->
+    <div class="col-sm-6 col-xl-2">
+        <div class="stat-card amber">
+            <div class="stat-info">
+                <div class="stat-label">Active Loans</div>
+                <div class="stat-value">{{ metrics.active_loans }}</div>
+                <div class="stat-desc">Currently checked out</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-arrow-repeat"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Overdue Loans -->
+    <div class="col-sm-6 col-xl-2">
+        <div class="stat-card rose">
+            <div class="stat-info">
+                <div class="stat-label">Overdue Loans</div>
+                <div class="stat-value">{{ metrics.overdue_loans }}</div>
+                <div class="stat-desc text-danger font-monospace">Needs attention</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. Total Transactions -->
+    <div class="col-sm-6 col-xl-2">
+        <div class="stat-card emerald">
+            <div class="stat-info">
+                <div class="stat-label">Transactions</div>
+                <div class="stat-value">{{ metrics.total_transactions }}</div>
+                <div class="stat-desc">{{ metrics.returned_loans }} returned</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-receipt"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Grid -->
+<div class="row g-4 mb-4">
+    <!-- Chart 1: Monthly Borrowing Trends (Line Chart) -->
+    <div class="col-lg-7">
+        <div class="custom-card h-100">
+            <div class="custom-card-header">
+                <h5><i class="bi bi-graph-up text-primary"></i> Monthly Borrowing Trends</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ url_for('download_chart', chart_type='monthly') }}" class="btn btn-sm btn-outline-secondary" title="Download Matplotlib PNG">
+                        <i class="bi bi-download"></i> PNG
+                    </a>
+                    <a href="{{ url_for('analytics_view') }}" class="btn btn-sm btn-outline-primary">Details</a>
+                </div>
+            </div>
+            <div class="custom-card-body">
+                <div class="chart-wrapper">
+                    <canvas id="monthlyTrendsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 2: Most Borrowed Books (Bar Chart) -->
+    <div class="col-lg-5">
+        <div class="custom-card h-100">
+            <div class="custom-card-header">
+                <h5><i class="bi bi-bar-chart-fill text-primary"></i> Most Borrowed Books</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ url_for('download_chart', chart_type='most_borrowed', top_n=8) }}" class="btn btn-sm btn-outline-secondary" title="Download Matplotlib PNG">
+                        <i class="bi bi-download"></i> PNG
+                    </a>
+                    <a href="{{ url_for('analytics_view') }}" class="btn btn-sm btn-outline-primary">Top Books</a>
+                </div>
+            </div>
+            <div class="custom-card-body">
+                <div class="chart-wrapper">
+                    <canvas id="mostBorrowedChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 3: Books by Category (Pie Chart) -->
+    <div class="col-lg-6">
+        <div class="custom-card h-100">
+            <div class="custom-card-header">
+                <h5><i class="bi bi-pie-chart-fill text-info"></i> Borrowing by Category</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ url_for('download_chart', chart_type='category') }}" class="btn btn-sm btn-outline-secondary" title="Download Matplotlib PNG">
+                        <i class="bi bi-download"></i> PNG
+                    </a>
+                </div>
+            </div>
+            <div class="custom-card-body">
+                <div class="chart-wrapper">
+                    <canvas id="categoryPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 4: Active vs Returned Loans (Doughnut Chart) -->
+    <div class="col-lg-6">
+        <div class="custom-card h-100">
+            <div class="custom-card-header">
+                <h5><i class="bi bi-pie-chart text-success"></i> Loan Status Distribution</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ url_for('download_chart', chart_type='loan_status') }}" class="btn btn-sm btn-outline-secondary" title="Download Matplotlib PNG">
+                        <i class="bi bi-download"></i> PNG
+                    </a>
+                </div>
+            </div>
+            <div class="custom-card-body">
+                <div class="chart-wrapper">
+                    <canvas id="loanStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Transactions Table -->
+<div class="custom-card mb-4">
+    <div class="custom-card-header">
+        <h5><i class="bi bi-clock-history text-primary"></i> Recent Borrowing Transactions</h5>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('return_book') }}" class="btn btn-sm btn-outline-primary">Manage Loans</a>
+            <a href="{{ url_for('reports', type='active_loans') }}" class="btn btn-sm btn-outline-secondary">View All</a>
+        </div>
+    </div>
+    <div class="custom-card-body p-0">
+        <div class="table-responsive">
+            <table class="custom-table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Loan ID</th>
+                        <th>Book Title</th>
+                        <th>Category</th>
+                        <th>Borrower</th>
+                        <th>Roll No</th>
+                        <th>Issue Date</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in recent_loans %}
+                        <tr>
+                            <td><strong class="text-primary">#{{ loan.loan_id }}</strong></td>
+                            <td class="fw-semibold">{{ loan.title }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ loan.category }}</span></td>
+                            <td>{{ loan.borrower_name }}</td>
+                            <td><span class="font-monospace small text-muted">{{ loan.roll_no }}</span></td>
+                            <td>{{ loan.issue_date }}</td>
+                            <td>{{ loan.due_date }}</td>
+                            <td>
+                                {% if loan.is_returned %}
+                                    <span class="badge-status returned"><i class="bi bi-check-circle"></i> Returned</span>
+                                {% elif loan.is_overdue %}
+                                    <span class="badge-status overdue"><i class="bi bi-exclamation-circle"></i> Overdue</span>
+                                {% else %}
+                                    <span class="badge-status active"><i class="bi bi-hourglass-split"></i> Active</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">No recent transactions recorded.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

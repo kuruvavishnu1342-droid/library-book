@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Borrowers Management - {{ app_name }}{% endblock %}
+{% block page_title %}Borrowers & Student Patrons{% endblock %}
+{% block page_subtitle %}Manage student and faculty borrower records, active borrow quotas, and credentials{% endblock %}
+
+{% block content %}
+<!-- Search & Filter Toolbar -->
+<div class="filter-toolbar">
+    <form method="GET" action="{{ url_for('borrowers') }}" class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
+        <div class="input-group" style="max-width: 380px;">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" name="search" class="form-control border-start-0 ps-0" 
+                   placeholder="Search borrower by name or roll number..." 
+                   value="{{ search }}">
+        </div>
+
+        <button type="submit" class="btn btn-outline-primary"><i class="bi bi-search"></i> Search</button>
+        {% if search %}
+            <a href="{{ url_for('borrowers') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Clear</a>
+        {% endif %}
+    </form>
+
+    <!-- Add Borrower Button -->
+    <button type="button" class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addBorrowerModal">
+        <i class="bi bi-person-plus-fill"></i> Register Borrower
+    </button>
+</div>
+
+<!-- Borrowers Table Card -->
+<div class="custom-card">
+    <div class="custom-card-header">
+        <h5><i class="bi bi-people-fill text-primary"></i> Registered Patrons ({{ borrowers|length }} members)</h5>
+        <div class="text-muted small">Tracks active book loans per patron</div>
+    </div>
+    <div class="custom-card-body p-0">
+        <div class="table-responsive">
+            <table class="custom-table" id="borrowersTable">
+                <thead>
+                    <tr>
+                        <th style="width: 80px;">ID</th>
+                        <th>Borrower Name</th>
+                        <th>Roll Number</th>
+                        <th class="text-center">Total History</th>
+                        <th class="text-center">Active Loans</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end" style="width: 120px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for borrower in borrowers %}
+                        <tr>
+                            <td><strong class="text-primary">#{{ borrower.borrower_id }}</strong></td>
+                            <td class="fw-bold text-dark">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-primary fw-bold" style="width: 32px; height: 32px;">
+                                        {{ borrower.borrower_name[0]|upper }}
+                                    </div>
+                                    <span>{{ borrower.borrower_name }}</span>
+                                </div>
+                            </td>
+                            <td><code class="text-dark bg-light px-2 py-1 rounded small">{{ borrower.roll_no }}</code></td>
+                            <td class="text-center fw-semibold">{{ borrower.total_loans or 0 }} loans</td>
+                            <td class="text-center">
+                                {% if borrower.active_loans and borrower.active_loans > 0 %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">
+                                        {{ borrower.active_loans }} active
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary px-2 py-1">0 active</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if borrower.active_loans and borrower.active_loans > 0 %}
+                                    <span class="badge-status active" style="font-size: 0.72rem;">Borrowing</span>
+                                {% else %}
+                                    <span class="badge-status returned" style="font-size: 0.72rem;">Clear</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-1">
+                                    <!-- Edit Borrower Trigger -->
+                                    <button type="button" class="btn-action" title="Edit Borrower"
+                                            data-bs-toggle="modal" data-bs-target="#editBorrowerModal{{ borrower.borrower_id }}">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+
+                                    <!-- Delete Borrower Trigger -->
+                                    <button type="button" class="btn-action btn-action-delete" title="Delete Borrower"
+                                            data-bs-toggle="modal" data-bs-target="#deleteBorrowerModal{{ borrower.borrower_id }}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Edit Borrower Modal -->
+                        <div class="modal fade" id="editBorrowerModal{{ borrower.borrower_id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('edit_borrower', borrower_id=borrower.borrower_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title"><i class="bi bi-pencil-square text-primary"></i> Edit Borrower Profile</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Borrower Full Name <span class="text-danger">*</span></label>
+                                                <input type="text" name="borrower_name" class="form-control" value="{{ borrower.borrower_name }}" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Roll / Identification Number <span class="text-danger">*</span></label>
+                                                <input type="text" name="roll_no" class="form-control" value="{{ borrower.roll_no }}" required>
+                                                <div class="form-text small">Must be unique for each borrower.</div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-primary-custom">Update Borrower</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Delete Borrower Modal -->
+                        <div class="modal fade" id="deleteBorrowerModal{{ borrower.borrower_id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('delete_borrower', borrower_id=borrower.borrower_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                        <div class="modal-header border-0 pb-0">
+                                            <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Delete Borrower</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body py-3">
+                                            <p>Are you sure you want to delete borrower <strong>"{{ borrower.borrower_name }}"</strong> (Roll No: {{ borrower.roll_no }})?</p>
+                                            <div class="alert alert-warning small mb-0">
+                                                <i class="bi bi-shield-exclamation"></i> Borrowers with active loans cannot be deleted until all loaned books are returned.
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer border-0 pt-0">
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-danger">Delete Record</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="bi bi-person-x fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                                No borrowers found matching your search.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Borrower Modal -->
+<div class="modal fade" id="addBorrowerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('borrowers') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-plus text-primary"></i> Register New Borrower</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" name="borrower_name" class="form-control" placeholder="e.g. John Doe" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Roll Number / Student ID <span class="text-danger">*</span></label>
+                        <input type="text" name="roll_no" class="form-control" placeholder="e.g. CS2026-099" required>
+                        <div class="form-text small">Must be unique across all library patrons.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom"><i class="bi bi-check-lg"></i> Register</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

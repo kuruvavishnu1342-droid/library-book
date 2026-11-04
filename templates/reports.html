@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Reports & CSV Export - {{ app_name }}{% endblock %}
+{% block page_title %}Library Reports & Data Export{% endblock %}
+{% block page_subtitle %}Comprehensive administrative audits, transaction histories, and spreadsheet CSV downloads{% endblock %}
+
+{% block content %}
+<!-- Report Navigation Tabs -->
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-body p-2 bg-white rounded">
+        <ul class="nav nav-pills nav-fill flex-column flex-sm-row gap-1">
+            <li class="nav-item">
+                <a class="nav-link {% if report_type == 'most_borrowed' %}active{% endif %}" href="{{ url_for('reports', type='most_borrowed') }}">
+                    <i class="bi bi-trophy"></i> Most Borrowed
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if report_type == 'overdue' %}active{% endif %}" href="{{ url_for('reports', type='overdue') }}">
+                    <i class="bi bi-exclamation-triangle"></i> Overdue Loans
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if report_type == 'monthly' %}active{% endif %}" href="{{ url_for('reports', type='monthly') }}">
+                    <i class="bi bi-graph-up"></i> Monthly Report
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if report_type == 'category' %}active{% endif %}" href="{{ url_for('reports', type='category') }}">
+                    <i class="bi bi-pie-chart"></i> Category Breakdown
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if report_type == 'active_loans' %}active{% endif %}" href="{{ url_for('reports', type='active_loans') }}">
+                    <i class="bi bi-hourglass-split"></i> Active Loans
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if report_type == 'returned' %}active{% endif %}" href="{{ url_for('reports', type='returned') }}">
+                    <i class="bi bi-check-all"></i> Returned Books
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- Filter & Export Action Bar -->
+<div class="filter-toolbar">
+    <form method="GET" action="{{ url_for('reports') }}" class="d-flex flex-wrap align-items-center gap-2">
+        <input type="hidden" name="type" value="{{ report_type }}">
+        
+        <div class="d-flex align-items-center gap-2">
+            <span class="small fw-semibold text-secondary">Date Filter:</span>
+            <input type="date" name="start_date" class="form-control form-control-sm" style="max-width: 160px;" value="{{ start_date }}" placeholder="Start Date">
+            <span class="text-muted">to</span>
+            <input type="date" name="end_date" class="form-control form-control-sm" style="max-width: 160px;" value="{{ end_date }}" placeholder="End Date">
+            <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-funnel"></i> Filter</button>
+            {% if start_date or end_date %}
+                <a href="{{ url_for('reports', type=report_type) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i> Reset</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <div class="d-flex align-items-center gap-2">
+        <!-- Export CSV Button -->
+        <a href="{{ url_for('export_csv', report_type=report_type, start_date=start_date, end_date=end_date) }}" class="btn btn-success text-white">
+            <i class="bi bi-file-earmark-spreadsheet-fill"></i> Export as CSV
+        </a>
+
+        <!-- Chart Download if supported -->
+        {% if report_type == 'most_borrowed' %}
+            <a href="{{ url_for('download_chart', chart_type='most_borrowed', top_n=10) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-image"></i> Chart PNG
+            </a>
+        {% elif report_type == 'monthly' %}
+            <a href="{{ url_for('download_chart', chart_type='monthly') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-image"></i> Chart PNG
+            </a>
+        {% elif report_type == 'category' %}
+            <a href="{{ url_for('download_chart', chart_type='category') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-image"></i> Chart PNG
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Report Table Card -->
+<div class="custom-card">
+    <div class="custom-card-header">
+        <h5><i class="bi bi-table text-primary"></i> {{ report_title }} ({{ records|length }} records)</h5>
+        <div class="small text-muted">Formatted audit records</div>
+    </div>
+    <div class="custom-card-body p-0">
+        <div class="table-responsive">
+            <table class="custom-table" id="reportDataTable">
+                <thead>
+                    <tr>
+                        {% for h in headers %}
+                            <th>{{ h }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if report_type == 'most_borrowed' %}
+                        {% for r in records %}
+                            <tr>
+                                <td>#{{ r.book_id }}</td>
+                                <td class="fw-bold text-dark">{{ r.title }}</td>
+                                <td>{{ r.author }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ r.category }}</span></td>
+                                <td><code>{{ r.isbn }}</code></td>
+                                <td>{{ r.total_copies }}</td>
+                                <td>{{ r.copies_available }}</td>
+                                <td><span class="badge bg-primary fs-6">{{ r.borrow_count }}</span></td>
+                            </tr>
+                        {% endfor %}
+
+                    {% elif report_type == 'overdue' %}
+                        {% for r in records %}
+                            <tr class="table-danger-subtle">
+                                <td><strong>#{{ r.loan_id }}</strong></td>
+                                <td class="fw-bold">{{ r.title }}</td>
+                                <td>{{ r.borrower_name }}</td>
+                                <td><code>{{ r.roll_no }}</code></td>
+                                <td><span class="badge bg-light text-dark border">{{ r.category }}</span></td>
+                                <td>{{ r.issue_date }}</td>
+                                <td class="text-danger fw-bold">{{ r.due_date }}</td>
+                                <td><span class="badge bg-danger">{{ r.days_overdue }} days</span></td>
+                            </tr>
+                        {% endfor %}
+
+                    {% elif report_type == 'monthly' %}
+                        {% for r in records %}
+                            <tr>
+                                <td><code>{{ r.period }}</code></td>
+                                <td class="fw-bold">{{ r.formatted_month }}</td>
+                                <td class="fw-bold text-primary">{{ r.total_issued }}</td>
+                                <td>{{ r.unique_books }}</td>
+                                <td>{{ r.unique_borrowers }}</td>
+                                <td class="text-success">{{ r.returned_count }}</td>
+                                <td class="text-warning-emphasis">{{ r.active_count }}</td>
+                            </tr>
+                        {% endfor %}
+
+                    {% elif report_type == 'category' %}
+                        {% for r in records %}
+                            <tr>
+                                <td class="fw-bold text-primary">{{ r.category }}</td>
+                                <td>{{ r.total_books }}</td>
+                                <td>{{ r.total_copies }}</td>
+                                <td>{{ r.total_available }}</td>
+                                <td class="fw-bold">{{ r.borrow_transactions }}</td>
+                                <td>{{ r.borrow_percentage }}%</td>
+                            </tr>
+                        {% endfor %}
+
+                    {% elif report_type == 'active_loans' %}
+                        {% for r in records %}
+                            <tr>
+                                <td><strong>#{{ r.loan_id }}</strong></td>
+                                <td class="fw-bold">{{ r.title }}</td>
+                                <td>{{ r.author }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ r.category }}</span></td>
+                                <td>{{ r.borrower_name }}</td>
+                                <td><code>{{ r.roll_no }}</code></td>
+                                <td>{{ r.issue_date }}</td>
+                                <td class="text-primary fw-bold">{{ r.due_date }}</td>
+                            </tr>
+                        {% endfor %}
+
+                    {% elif report_type == 'returned' %}
+                        {% for r in records %}
+                            <tr>
+                                <td><strong>#{{ r.loan_id }}</strong></td>
+                                <td class="fw-bold">{{ r.title }}</td>
+                                <td>{{ r.author }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ r.category }}</span></td>
+                                <td>{{ r.borrower_name }}</td>
+                                <td><code>{{ r.roll_no }}</code></td>
+                                <td>{{ r.issue_date }}</td>
+                                <td>{{ r.due_date }}</td>
+                                <td class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> {{ r.return_date }}</td>
+                            </tr>
+                        {% endfor %}
+
+                    {% endif %}
+
+                    {% if not records %}
+                        <tr>
+                            <td colspan="{{ headers|length }}" class="text-center py-5 text-muted">
+                                <i class="bi bi-folder-x fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                                No records found for this report.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

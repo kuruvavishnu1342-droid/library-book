@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}Usage Analytics - {{ app_name }}{% endblock %}
+{% block page_title %}Library Book Usage Analytics{% endblock %}
+{% block page_subtitle %}In-depth data science analysis powered by Pandas, NumPy statistical calculations, and Matplotlib visualizations{% endblock %}
+
+{% block content %}
+<!-- Section 1: Most Borrowed Books Analysis -->
+<div class="custom-card mb-4">
+    <div class="custom-card-header flex-wrap gap-2">
+        <div>
+            <h5><i class="bi bi-trophy-fill text-warning"></i> Most-Borrowed Books Analysis</h5>
+            <div class="small text-muted">Identify highest circulation volumes and high-demand literature</div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <!-- Top 5 / Top 10 Toggle -->
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('analytics_view', top_n=5, start_date=start_date, end_date=end_date) }}" 
+                   class="btn btn-sm {% if top_n == 5 %}btn-primary{% else %}btn-outline-primary{% endif %}">Top 5</a>
+                <a href="{{ url_for('analytics_view', top_n=10, start_date=start_date, end_date=end_date) }}" 
+                   class="btn btn-sm {% if top_n == 10 %}btn-primary{% else %}btn-outline-primary{% endif %}">Top 10</a>
+            </div>
+            <!-- Download PNG Chart -->
+            <a href="{{ url_for('download_chart', chart_type='most_borrowed', top_n=top_n) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-download"></i> Download Chart (PNG)
+            </a>
+        </div>
+    </div>
+    <div class="custom-card-body">
+        <div class="row g-4 align-items-center">
+            <div class="col-lg-6">
+                <div class="chart-wrapper">
+                    <canvas id="analyticsMostBorrowedChart"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="table-responsive">
+                    <table class="custom-table table-sm">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Book Title</th>
+                                <th>Category</th>
+                                <th class="text-center">Times Borrowed</th>
+                                <th class="text-center">Available / Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in most_borrowed.table %}
+                                <tr>
+                                    <td>
+                                        {% if loop.index == 1 %}
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-trophy"></i> 1</span>
+                                        {% elif loop.index == 2 %}
+                                            <span class="badge bg-secondary text-white">2</span>
+                                        {% elif loop.index == 3 %}
+                                            <span class="badge bg-danger-subtle text-danger-emphasis">3</span>
+                                        {% else %}
+                                            <span class="text-muted fw-bold">{{ loop.index }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold">{{ b.title }}</div>
+                                        <small class="text-muted">{{ b.author }}</small>
+                                    </td>
+                                    <td><span class="badge bg-light text-dark border">{{ b.category }}</span></td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary px-2 py-1 fw-bold fs-6">{{ b.borrow_count }}</span>
+                                    </td>
+                                    <td class="text-center text-muted small">
+                                        {{ b.copies_available }} / {{ b.total_copies }}
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="5" class="text-center py-3 text-muted">No borrowing transactions recorded.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section 2: Monthly Borrowing Trends Analysis -->
+<div class="custom-card mb-4">
+    <div class="custom-card-header flex-wrap gap-2">
+        <div>
+            <h5><i class="bi bi-graph-up-arrow text-primary"></i> Monthly Borrowing Trends Analysis</h5>
+            <div class="small text-muted">Time-series loan distribution calculated with Pandas & NumPy</div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('download_chart', chart_type='monthly') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-download"></i> Download Trend Chart (PNG)
+            </a>
+        </div>
+    </div>
+    <div class="custom-card-body">
+        <!-- Date-Range Filter Form -->
+        <form method="GET" action="{{ url_for('analytics_view') }}" class="row g-3 align-items-end mb-4 p-3 bg-light rounded border">
+            <input type="hidden" name="top_n" value="{{ top_n }}">
+            <div class="col-md-4">
+                <label class="form-label small fw-bold">From Issue Date</label>
+                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-bold">To Issue Date</label>
+                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}">
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary-custom flex-grow-1"><i class="bi bi-funnel"></i> Apply Date Filter</button>
+                {% if start_date or end_date %}
+                    <a href="{{ url_for('analytics_view', top_n=top_n) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i> Clear</a>
+                {% endif %}
+            </div>
+        </form>
+
+        <!-- NumPy Statistical Metrics Row -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="p-3 bg-white border rounded shadow-sm text-center">
+                    <div class="text-muted small text-uppercase fw-bold">Total Issued</div>
+                    <div class="fs-4 fw-bold text-primary">{{ monthly_trends.stats.total }}</div>
+                    <div class="small text-muted">Transactions</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3 bg-white border rounded shadow-sm text-center">
+                    <div class="text-muted small text-uppercase fw-bold">Mean / Month</div>
+                    <div class="fs-4 fw-bold text-success">{{ monthly_trends.stats.mean }}</div>
+                    <div class="small text-muted">NumPy mean calculation</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3 bg-white border rounded shadow-sm text-center">
+                    <div class="text-muted small text-uppercase fw-bold">Std Deviation (&sigma;)</div>
+                    <div class="fs-4 fw-bold text-info">{{ monthly_trends.stats.std }}</div>
+                    <div class="small text-muted">NumPy sample std dev</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3 bg-white border rounded shadow-sm text-center">
+                    <div class="text-muted small text-uppercase fw-bold">Median / Month</div>
+                    <div class="fs-4 fw-bold text-warning">{{ monthly_trends.stats.median }}</div>
+                    <div class="small text-muted">NumPy 50th percentile</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Line Chart -->
+        <div class="chart-wrapper mb-4" style="height: 340px;">
+            <canvas id="analyticsMonthlyChart"></canvas>
+        </div>
+
+        <!-- Monthly Breakdown Table -->
+        <div class="table-responsive">
+            <table class="custom-table table-sm">
+                <thead>
+                    <tr>
+                        <th>Period</th>
+                        <th>Month Name</th>
+                        <th class="text-center">Total Books Issued</th>
+                        <th class="text-center">Unique Books</th>
+                        <th class="text-center">Unique Borrowers</th>
+                        <th class="text-center">Returned Count</th>
+                        <th class="text-center">Active Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in monthly_trends.table %}
+                        <tr>
+                            <td><code class="small">{{ m.period }}</code></td>
+                            <td class="fw-semibold">{{ m.formatted_month }}</td>
+                            <td class="text-center fw-bold text-primary">{{ m.total_issued }}</td>
+                            <td class="text-center">{{ m.unique_books }}</td>
+                            <td class="text-center">{{ m.unique_borrowers }}</td>
+                            <td class="text-center text-success"><i class="bi bi-check-circle"></i> {{ m.returned_count }}</td>
+                            <td class="text-center text-warning-emphasis"><i class="bi bi-clock"></i> {{ m.active_count }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="7" class="text-center py-3 text-muted">No monthly records in this date range.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Section 3: Category-Wise Analysis -->
+<div class="custom-card mb-4">
+    <div class="custom-card-header flex-wrap gap-2">
+        <div>
+            <h5><i class="bi bi-pie-chart-fill text-info"></i> Category-Wise Usage & Distribution Analysis</h5>
+            <div class="small text-muted">Aggregated using Pandas groupby and NumPy descriptive statistics</div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('download_chart', chart_type='category') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-download"></i> Download Category Chart (PNG)
+            </a>
+        </div>
+    </div>
+    <div class="custom-card-body">
+        <div class="row g-4 align-items-center">
+            <div class="col-lg-5">
+                <div class="chart-wrapper">
+                    <canvas id="analyticsCategoryChart"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="table-responsive">
+                    <table class="custom-table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Category Name</th>
+                                <th class="text-center">Distinct Titles</th>
+                                <th class="text-center">Total Copies</th>
+                                <th class="text-center">Available</th>
+                                <th class="text-center">Loans</th>
+                                <th class="text-center">Share (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in category_data.table %}
+                                <tr>
+                                    <td class="fw-semibold">
+                                        <i class="bi bi-bookmark-fill text-primary me-1"></i> {{ c.category }}
+                                    </td>
+                                    <td class="text-center">{{ c.total_books }}</td>
+                                    <td class="text-center">{{ c.total_copies }}</td>
+                                    <td class="text-center">
+                                        <span class="badge {% if c.total_available > 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
+                                            {{ c.total_available }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center fw-bold text-primary">{{ c.borrow_transactions }}</td>
+                                    <td class="text-center">
+                                        <div class="d-flex align-items-center justify-content-center gap-2">
+                                            <div class="progress flex-grow-1" style="height: 6px; max-width: 60px;">
+                                                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ c.borrow_percentage }}%;"></div>
+                                            </div>
+                                            <span class="small fw-semibold">{{ c.borrow_percentage }}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="6" class="text-center py-3 text-muted">No category data available.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3 p-3 bg-light rounded border small text-secondary">
+                    <div class="d-flex justify-content-between">
+                        <span><strong>Top Performing Category:</strong> {{ category_data.stats.top_category }} ({{ category_data.stats.max_transactions }} transactions)</span>
+                        <span><strong>Mean per Category:</strong> {{ category_data.stats.mean_transactions }} loans</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Most Borrowed Interactive Bar Chart
+    const mostBorrowedLabels = {{ most_borrowed.labels|tojson }};
+    const mostBorrowedCounts = {{ most_borrowed.counts|tojson }};
+    const mbCtx = document.getElementById('analyticsMostBorrowedChart');
+    if (mbCtx && mostBorrowedLabels.length) {
+        new Chart(mbCtx, {
+            type: 'bar',
+            data: {
+                labels: mostBorrowedLabels.map(l => l.length > 22 ? l.substring(0, 20) + '...' : l),
+                datasets: [{
+                    label: 'Times Borrowed',
+                    data: mostBorrowedCounts,
+                    backgroundColor: '#2563eb',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+
+    // 2. Monthly Trend Chart
+    const monthlyLabels = {{ monthly_trends.labels|tojson }};
+    const monthlyCounts = {{ monthly_trends.counts|tojson }};
+    const mtCtx = document.getElementById('analyticsMonthlyChart');
+    if (mtCtx && monthlyLabels.length) {
+        new Chart(mtCtx, {
+            type: 'line',
+            data: {
+                labels: monthlyLabels,
+                datasets: [{
+                    label: 'Books Issued',
+                    data: monthlyCounts,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 6,
+                    pointBackgroundColor: '#1d4ed8'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+
+    // 3. Category Pie Chart
+    const catLabels = {{ category_data.labels|tojson }};
+    const catCounts = {{ category_data.counts|tojson }};
+    const catCtx = document.getElementById('analyticsCategoryChart');
+    if (catCtx && catLabels.length) {
+        new Chart(catCtx, {
+            type: 'pie',
+            data: {
+                labels: catLabels,
+                datasets: [{
+                    data: catCounts,
+                    backgroundColor: ['#2563eb', '#06b6d4', '#10b981', '#f59e0b', '#6366f1', '#8b5cf6', '#ec4899', '#64748b'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8, font: { size: 10 } } }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
